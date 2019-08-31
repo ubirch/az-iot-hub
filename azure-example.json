@@ -1,0 +1,6 @@
+{
+    "name": "my-device",
+    "policy": "device",
+    "endpoint": "mydevicehub.azure-devices.net",
+    "key": "shared access key"
+}
