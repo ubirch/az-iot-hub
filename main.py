@@ -78,7 +78,6 @@ while True:
         message = fmt.format(device_id, humidity,
                    light[0], light[1], temperature, int(time.time()), voltage)
 
-        print(message)
         client.publish(topic, message, qos=1)
         time.sleep(10)
     except Exception as e:
