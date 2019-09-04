@@ -1,4 +1,10 @@
 {
     "ssid": "SSID",
-    "pass": "password"
+    "pass": "password",
+    "type": "pysense",
+    "bootstrap": {
+        "authorization": "Basic <ACCESS TOKEN>",
+        "tenant": "ubirch",
+        "host": "management.cumulocity.com"
+    }
 }
