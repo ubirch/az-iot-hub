@@ -1,16 +1,32 @@
 from network import WLAN
 from umqtt.simple import MQTTClient
-import json
-import machine
+import os
 import time
+import machine
+import json
+from uuid import UUID
 
+import pycom
 from pysense import Pysense
 from LIS2HH12 import LIS2HH12
 from SI7006A20 import SI7006A20
 from LTR329ALS01 import LTR329ALS01
 from MPL3115A2 import MPL3115A2, ALTITUDE, PRESSURE
 
+# ubirch client
+from ubirch import UbirchClient
+
+# Cumulocity API
+from c8y.http_client import C8yHTTPClient as C8yClient
+
 from azure import generate_sas_token
+
+# disable blue heartbeat blink
+pycom.heartbeat(False)
+
+# generate device UUID
+uuid = UUID(b'UBIR'+ 2*machine.unique_id())
+print("** UUID   : "+str(uuid)+"\n")
 
 # load azure configuration
 with open("azure.json") as a:
@@ -20,7 +36,7 @@ device_id = azure['name']
 key = azure['key']
 policy = azure['policy']
 
-# load application config (wifi)
+# load application config
 with open('config.json') as c:
     config = json.load(c)
 
@@ -37,7 +53,7 @@ rtc = machine.RTC()
 rtc.ntp_sync("pool.ntp.org")
 while not rtc.synced():
     machine.idle()
-print("Time set to: {}".format(rtc.now()))
+print("Time set to: {}".format(rtc.now())+"\n")
 
 
 # configure the URI for authentication (same as HTTP)
@@ -59,6 +75,20 @@ client = MQTTClient(device_id, endpoint, user=username,
 client.connect()
 topic = "devices/{device_id}/messages/events/".format(device_id=device_id)
 
+# create Cumulocity client (bootstraps)
+uname = os.uname()
+c8y = C8yClient(uuid, dict(config['bootstrap']), {
+    "name": str(uuid),
+    "c8y_IsDevice": {},
+    "c8y_Hardware": {
+        "model": uname.machine + "-" + config['type'],
+        "revision": uname.release + "-" + uname.version,
+        "serialNumber": str(uuid)
+    }
+})
+
+ubirch = UbirchClient(uuid, c8y.get_auth())
+
 py = Pysense()
 # Returns height in meters. Mode may also be set to PRESSURE, returning a value in Pascals
 mp = MPL3115A2(py, mode=ALTITUDE)
@@ -68,6 +98,7 @@ li = LIS2HH12(py)
 
 while True:
     try:
+        #get new data
         temperature = mp.temperature()
         humidity = si.humidity()
         light = lt.light()
@@ -75,12 +106,31 @@ while True:
 
         # micropython does not support writing compact, sorted json
         fmt = """{{"deviceId":"{}","humidty":{:.3f},"light":[{},{}],"temperature":{:.3f},"time":{},"voltage":{:.3f}}}"""
-        message = fmt.format(device_id, humidity,
-                   light[0], light[1], temperature, int(time.time()), voltage)
+        message = fmt.format(device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
+        # send data to IoT Hub
+        print("** sending measurements ...")
         client.publish(topic, message, qos=1)
-        time.sleep(10)
+
+        # send data certificate (UPP) to UBIRCH
+        try:
+            print("** sending measurement certificate ...")
+            (response, r) = ubirch.send(message)
+        except Exception as e:
+            print("!! response: verification failed: {}".format(e))
+            time.sleep(2)
+        else:
+            if r.status_code == 202:
+                print(response)
+            else:
+                print("!! request failed with {}: {}".format(r.status_code, r.content.decode()))
+                time.sleep(2)
+
+        print("** done")
+
     except Exception as e:
         import sys
         sys.print_exception(e)
+
+    finally:
         time.sleep(30)
