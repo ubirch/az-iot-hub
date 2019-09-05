@@ -16,15 +16,13 @@
 
 import hashlib
 
-import binascii
 import umsgpack as msgpack
 from uuid import UUID
 
-# version 1
 logger = lambda msg: print(__name__+"{}".format(msg))
 
 # ubirch-protocol constants
-UBIRCH_PROTOCOL_VERSION = 1
+UBIRCH_PROTOCOL_VERSION = 2
 
 PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
 SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
@@ -33,6 +31,7 @@ CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 UBIRCH_PROTOCOL_TYPE_BIN = 0x00
 UBIRCH_PROTOCOL_TYPE_REG = 0x01
 UBIRCH_PROTOCOL_TYPE_HSK = 0x02
+
 
 class Protocol(object):
     _signatures = {}
@@ -71,6 +70,16 @@ class Protocol(object):
         if uuid in self._signatures:
             del self._signatures[uuid]
 
+    def _hash(self, message: bytes) -> bytes:
+        """
+        Hash the message before signing. Override this method if
+        a different hash algorithm is used. Default is SHA512.
+        :param message: the message bytes
+        :return: the digest in bytes
+        """
+        return hashlib.sha512(message).digest()
+
+
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """
         Sign the request when finished.
@@ -80,7 +89,7 @@ class Protocol(object):
         """
         raise NotImplementedError("signing not implemented")
 
-    def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+    def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """
         Verify the message. Throws exception if not verifiable.
         :param uuid: the uuid of the sender to identify the correct key pair
@@ -91,7 +100,7 @@ class Protocol(object):
         raise NotImplementedError("verification not implemented")
 
     def __serialize(self, msg: any) -> bytearray:
-        return bytearray(msgpack.packb(msg))
+        return bytearray(msgpack.packb(msg, use_bin_type=True))
 
     def _prepare_and_sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
         """
@@ -102,8 +111,7 @@ class Protocol(object):
         """
         # sign the message and store the signature
         serialized = self.__serialize(msg)[0:-1]
-        sha512digest = hashlib.sha512(serialized).digest()
-        signature = self._sign(uuid, sha512digest)
+        signature = self._sign(uuid, self._hash(serialized))
         # replace last element in array with the signature
         msg[-1] = signature
         return (signature, self.__serialize(msg))
@@ -121,7 +129,7 @@ class Protocol(object):
         msg = [
             SIGNED,
             uuid.bytes,
-            type,
+            type & 0xffffffff,
             payload,
             0
         ]
@@ -152,7 +160,7 @@ class Protocol(object):
             CHAINED,
             uuid.bytes,
             last_signature,
-            type,
+            type & 0xffffffff,
             payload,
             0
         ]
@@ -171,8 +179,7 @@ class Protocol(object):
         :param signature: the signature to use for verification
         :return:
         """
-        message = hashlib.sha512(message).digest()
-        return self._verify(uuid, message, signature)
+        return self._verify(uuid, self._hash(message), signature)
 
     def message_verify(self, message: bytes) -> dict:
         """
