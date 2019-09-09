@@ -5,6 +5,7 @@ import time
 import machine
 import json
 from uuid import UUID
+import binascii
 
 import pycom
 from pysense import Pysense
@@ -20,9 +21,6 @@ from ubirch import UbirchClient
 from c8y.http_client import C8yHTTPClient as C8yClient
 
 from azure import generate_sas_token
-
-# disable blue heartbeat blink
-pycom.heartbeat(False)
 
 # generate device UUID
 uuid = UUID(b'UBIR'+ 2*machine.unique_id())
@@ -87,7 +85,7 @@ c8y = C8yClient(uuid, dict(config['bootstrap']), {
     }
 })
 
-ubirch = UbirchClient(uuid, c8y.get_auth())
+ubirch = UbirchClient(uuid, c8y.get_auth()) #, "demo")
 
 py = Pysense()
 # Returns height in meters. Mode may also be set to PRESSURE, returning a value in Pascals
@@ -123,7 +121,7 @@ while True:
             if r.status_code == 202:
                 print(response)
             else:
-                print("!! request failed with {}: {}".format(r.status_code, r.content.decode()))
+                print("!! request failed with {}: {}".format(r.status_code, binascii.hexlify(r.content)))
                 time.sleep(2)
 
         print("** done")

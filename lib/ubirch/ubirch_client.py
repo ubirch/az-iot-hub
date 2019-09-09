@@ -96,6 +96,6 @@ class UbirchClient(Protocol):
             try:
                 response = self.message_verify(r.content)
             except Exception as e:
-                raise Exception(e, r.content)
+                raise Exception(e, binascii.hexlify(r.content))
 
         return response, r
