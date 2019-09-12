@@ -95,7 +95,10 @@ class UbirchClient(Protocol):
         if r.status_code == 200:
             try:
                 response = self.message_verify(r.content)
+                print("Response from {}: {}".format(self.__update_url, response))
             except Exception as e:
-                raise Exception(e, binascii.hexlify(r.content))
+                print("!! response: verification failed: {}. {}".format(e, binascii.hexlify(r.content)))
+        else:
+            print("!! request failed with {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
         return response, r

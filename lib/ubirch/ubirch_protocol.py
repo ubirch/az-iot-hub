@@ -197,9 +197,5 @@ class Protocol(object):
             signature = unpacked[4]
         else:
             signature = unpacked[5]
-        print("\nresponse UUID            : "+str(uuid)+"\n")
-        print("response complete message: {}\n".format(binascii.hexlify(message)))
-        print("response unsigned message: {}\n".format(binascii.hexlify(message[0:-66])))
-        print("response signature       : {}\n".format(binascii.hexlify(signature)))
         self._prepare_and_verify(uuid, message[0:-66], signature)
         return unpacked

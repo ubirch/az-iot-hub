@@ -111,20 +111,10 @@ while True:
         client.publish(topic, message, qos=1)
 
         # send data certificate (UPP) to UBIRCH
-        try:
-            print("** sending measurement certificate ...")
-            (response, r) = ubirch.send(message)
-        except Exception as e:
-            print("!! response: verification failed: {}".format(e))
-            time.sleep(2)
-        else:
-            if r.status_code == 202:
-                print(response)
-            else:
-                print("!! request failed with {}: {}".format(r.status_code, binascii.hexlify(r.content)))
-                time.sleep(2)
+        print("** sending measurement certificate ...")
+        ubirch.send(message)
 
-        print("** done")
+        print("** done\n")
 
     except Exception as e:
         import sys
