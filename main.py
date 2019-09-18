@@ -1,11 +1,9 @@
 from network import WLAN
-from umqtt.simple import MQTTClient
 import os
 import time
 import machine
 import json
 from uuid import UUID
-import binascii
 
 import pycom
 from pysense import Pysense
@@ -20,19 +18,12 @@ from ubirch import UbirchClient
 # Cumulocity API
 from c8y.http_client import C8yHTTPClient as C8yClient
 
-from azure import generate_sas_token
+# azure client
+from azure import AzureClient
 
 # generate device UUID
 uuid = UUID(b'UBIR'+ 2*machine.unique_id())
 print("** UUID   : "+str(uuid)+"\n")
-
-# load azure configuration
-with open("azure.json") as a:
-    azure = json.load(a)
-endpoint = azure['endpoint']
-device_id = azure['name']
-key = azure['key']
-policy = azure['policy']
 
 # load application config
 with open('config.json') as c:
@@ -53,25 +44,10 @@ while not rtc.synced():
     machine.idle()
 print("Time set to: {}".format(rtc.now())+"\n")
 
+# create Azure client (MQTT) and establish connection
+azure = AzureClient()
 
-# configure the URI for authentication (same as HTTP)
-uri = "{hostname}/devices/{device_id}".format(
-    hostname=endpoint,
-    device_id=device_id
-)
-# configure username and password from config
-username = "{hostname}/{device_id}/api-version=2018-06-30".format(
-    hostname=endpoint,
-    device_id=device_id
-)
-password = generate_sas_token(uri, key, policy)
-
-# create MQTT client
-client = MQTTClient(device_id, endpoint, user=username,
-                    password=password, ssl=True, port=8883)
-
-client.connect()
-topic = "devices/{device_id}/messages/events/".format(device_id=device_id)
+azure.connect()
 
 # create Cumulocity client (bootstraps)
 uname = os.uname()
@@ -104,11 +80,11 @@ while True:
 
         # micropython does not support writing compact, sorted json
         fmt = """{{"deviceId":"{}","humidty":{:.3f},"light":[{},{}],"temperature":{:.3f},"time":{},"voltage":{:.3f}}}"""
-        message = fmt.format(device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
+        message = fmt.format(azure.device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
         # send data to IoT Hub
         print("** sending measurements ...")
-        client.publish(topic, message, qos=1)
+        azure.send(message)
 
         # send data certificate (UPP) to UBIRCH
         print("** sending measurement certificate ...")
@@ -121,4 +97,4 @@ while True:
         sys.print_exception(e)
 
     finally:
-        time.sleep(30)
+        time.sleep(6)
