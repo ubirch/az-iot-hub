@@ -24,6 +24,9 @@ from azure_client import AzureClient
 # IBM client
 from ibm_cloud_client import IBMClient
 
+# ubirch visualization
+from ubirch_visual_client import UbirchVisualisation
+
 # generate device UUID
 uuid = UUID(b'UBIR'+ 2*machine.unique_id())
 print("** UUID   : "+str(uuid)+"\n")
@@ -69,6 +72,8 @@ c8y = C8yClient(uuid, dict(config['bootstrap']), {
 
 ubirch = UbirchClient(uuid, c8y.get_auth()) #, "demo")
 
+visual = UbirchVisualisation(uuid, config['visuPW'])
+
 py = Pysense()
 # Returns height in meters. Mode may also be set to PRESSURE, returning a value in Pascals
 mp = MPL3115A2(py, mode=ALTITUDE)
@@ -88,17 +93,20 @@ while True:
         fmt = """{{"deviceId":"{}","humidty":{:.3f},"light0":{},"light1":{},"temperature":{:.3f},"time":{},"voltage":{:.3f}}}"""
         message = fmt.format(azure.device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
-        # send data to IoT hub
-        print("** sending measurements to azure IoT hub...")
-        azure.send(message)
+        # # send data to IoT hub
+        # print("** sending measurements to azure IoT hub...")
+        # azure.send(message)
+        #
+        # # send data to IBM cloud
+        # print("** sending measurements IBM cloud...")
+        # ibm.send(message)
+        #
+        # # send data certificate (UPP) to UBIRCH
+        # print("** sending measurement certificate ...")
+        # ubirch.send(message)
 
-        # send data to IBM cloud
-        print("** sending measurements IBM cloud...")
-        ibm.send(message)
-
-        # send data certificate (UPP) to UBIRCH
-        print("** sending measurement certificate ...")
-        ubirch.send(message)
+        # send data point to visualization
+        visual.send(light[0])
 
         print("** done\n")
 
