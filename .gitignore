@@ -1,5 +1,6 @@
 azure.json
 config.json
+ibm_cloud.json
 .vscode/
 .idea/
 .env/

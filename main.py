@@ -19,7 +19,10 @@ from ubirch import UbirchClient
 from c8y.http_client import C8yHTTPClient as C8yClient
 
 # azure client
-from azure import AzureClient
+from azure_client import AzureClient
+
+# IBM client
+from ibm_cloud_client import IBMClient
 
 # generate device UUID
 uuid = UUID(b'UBIR'+ 2*machine.unique_id())
@@ -44,10 +47,13 @@ while not rtc.synced():
     machine.idle()
 print("Time set to: {}".format(rtc.now())+"\n")
 
-# create Azure client (MQTT) and establish connection
+# create Azure client (MQTT) and connect
 azure = AzureClient()
-
 azure.connect()
+
+# create IBM Cloud client (MQTT) and connect
+ibm = IBMClient()
+ibm.connect()
 
 # create Cumulocity client (bootstraps)
 uname = os.uname()
@@ -79,12 +85,16 @@ while True:
         voltage = py.read_battery_voltage()
 
         # micropython does not support writing compact, sorted json
-        fmt = """{{"deviceId":"{}","humidty":{:.3f},"light":[{},{}],"temperature":{:.3f},"time":{},"voltage":{:.3f}}}"""
+        fmt = """{{"deviceId":"{}","humidty":{:.3f},"light0":{},"light1":{},"temperature":{:.3f},"time":{},"voltage":{:.3f}}}"""
         message = fmt.format(azure.device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
-        # send data to IoT Hub
-        print("** sending measurements ...")
+        # send data to IoT hub
+        print("** sending measurements to azure IoT hub...")
         azure.send(message)
+
+        # send data to IBM cloud
+        print("** sending measurements IBM cloud...")
+        ibm.send(message)
 
         # send data certificate (UPP) to UBIRCH
         print("** sending measurement certificate ...")
