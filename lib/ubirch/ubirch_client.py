@@ -99,6 +99,6 @@ class UbirchClient(Protocol):
             except Exception as e:
                 print("!! response: verification failed: {}. {}".format(e, binascii.hexlify(r.content)))
         else:
-            print("!! request failed with {}: {}".format(r.status_code, binascii.hexlify(r.content)))
+            print("!! request failed with {}: {}".format(r.status_code, r.content.decode()))
 
         return response, r
