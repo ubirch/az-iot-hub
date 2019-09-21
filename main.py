@@ -106,6 +106,7 @@ while True:
         # ubirch.send(message)
 
         # send data point to visualization
+        print("** sending light data point to visualization backend ...")
         visual.send(light[0])
 
         print("** done\n")

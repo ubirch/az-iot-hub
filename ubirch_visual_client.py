@@ -12,7 +12,7 @@ class UbirchVisualisation:
         self.__headers = {'X-Ubirch-Hardware-Id': str(self.uuid), 'X-Ubirch-Credential': str(self.__pw)}
 
     def send(self, data_point):
-        data = {'date': str(time.time()), 'data': str(data_point)}
+        data = {'date': int(time.time()), 'data': data_point}
 
         r = requests.post(self.__url, headers=self.__headers, json=data)
 
