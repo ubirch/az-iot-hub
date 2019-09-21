@@ -14,7 +14,7 @@ class UbirchVisualisation:
     def send(self, data_point):
         data = {'date': int(time.time()), 'data': data_point}
 
-        r = requests.post(self.__url, headers=self.__headers, data=json.dumps(data))
+        r = requests.post(self.__url, headers=self.__headers, json=data)
 
         if r.status_code == 200:
             print("Response from {}: {}".format(self.__url, r.content))
