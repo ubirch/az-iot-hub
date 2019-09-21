@@ -12,9 +12,9 @@ class UbirchVisualisation:
         self.__headers = {'X-Ubirch-Hardware-Id': self.uuid, 'X-Ubirch-Credential': self.__pw}
 
     def send(self, data_point):
-        data = """{{"date":"{}","data":"{}"}}""".format(int(time.time()), data_point)
+        data = {'date': int(time.time()), 'data': data_point}
 
-        r = requests.post(self.__url, headers=self.__headers, data=bytearray(data))
+        r = requests.post(self.__url, headers=self.__headers, data=json.dumps(data))
 
         if r.status_code == 200:
             print("Response from {}: {}".format(self.__url, r.content))
