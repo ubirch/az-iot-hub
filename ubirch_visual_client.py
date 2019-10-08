@@ -3,13 +3,14 @@ import lib.urequests as requests
 from uuid import UUID
 import time
 
+
 class UbirchVisualisation:
 
     def __init__(self, uuid: UUID, auth: str):
-        self.uuid = uuid
+        self.__uuid = uuid
         self.__url = 'https://data.dev.ubirch.com/v1/'
-        self.__pw = auth
-        self.__headers = {'X-Ubirch-Hardware-Id': str(self.uuid), 'X-Ubirch-Credential': str(self.__pw)}
+        self.__auth = auth
+        self.__headers = {'X-Ubirch-Hardware-Id': str(self.__uuid), 'X-Ubirch-Credential': self.__auth}
 
     def send(self, data_point):
         data = {'date': int(time.time()), 'data': data_point}
