@@ -1,16 +1,18 @@
 import json
 from binascii import b2a_base64, a2b_base64
 from hashlib import sha256
-from time import time
 from hmac import HMAC
-from urllib.parse import quote_plus, urlencode, quote
+from time import time
+from urllib.parse import urlencode, quote
+
+import urequests as requests
+
 from lib.umqtt.simple import MQTTClient
 
 
 class AzureClient(MQTTClient):
 
     def __init__(self):
-
         # load azure configuration
         with open("azure.json") as a:
             azure = json.load(a)
@@ -29,12 +31,25 @@ class AzureClient(MQTTClient):
             hostname=endpoint,
             device_id=self.device_id
         )
-        password = self.generate_sas_token(uri, key, policy)
+        password = self._generate_sas_token(uri, key, policy)
+
+        # create new device in Azure IoT hub device registry
+        url = 'https://{}?api-version=2018-06-30'.format(uri)
+        body = '{deviceId: "%s"}' % self.device_id
+        r = requests.put(url, headers={'Content-Type': 'application/json', 'Authorization': password}, data=body)
+        if r.status_code == 200:
+            print("created new identity in IoT hub device registry")
+        elif r.status_code == 409:
+            print("device with ID {} already registered".format(self.device_id))
+        else:
+            raise Exception(
+                "!! PUT request failed with status code {}: {}".format(r.status_code, r.text))
+        print(r.text)
 
         # initialize underlying  MQTT client
         super().__init__(self.device_id, endpoint, user=username, password=password, ssl=True, port=8883)
 
-    def generate_sas_token(self, uri, key, policy_name="iothubowner", expiry=None):
+    def _generate_sas_token(self, uri, key, policy_name="iothubowner", expiry=None):
         # uri = quote(uri, safe='').lower()
         encoded_uri = quote(uri, safe='')
 
