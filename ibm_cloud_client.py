@@ -1,4 +1,5 @@
 import json
+
 from lib.umqtt.simple import MQTTClient
 
 
@@ -12,7 +13,7 @@ class IBMClient(MQTTClient):
         orga_ID = ibm_cloud['orgaID']
         device_type = ibm_cloud['deviceType']
         self.device_id = ibm_cloud['deviceID']
-        auth_method = ibm_cloud['authMethod']
+        auth_method = "use-token-auth"
         auth_token = ibm_cloud['authToken']
 
         client_id = "d:{org}:{type}:{device}".format(org=orga_ID, type=device_type, device=self.device_id)
