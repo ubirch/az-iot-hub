@@ -101,4 +101,4 @@ while True:
         sys.print_exception(e)
 
     finally:
-        time.sleep(6)
+        time.sleep(60)
