@@ -1,6 +1,6 @@
 {
-    "orgaID": "<6 digit organization ID>",
-    "deviceType": "pycom",
-    "deviceID": "my-device",
+  "orgaID": "<6 digit organization ID>",
+  "deviceType": "pycom",
+  "deviceID": "my-device",
   "authToken": "<AUTH TOKEN>"
 }
