@@ -7,49 +7,59 @@ from urllib.parse import urlencode, quote
 
 import urequests as requests
 
-from lib.umqtt.simple import MQTTClient
+
+def _get_device_key(r):
+    """
+    get the device primary key
+    :param r: the http request response from IoT hub device registry
+    :return: the primary symmetric authentication key of the registered device
+    """
+    device_info = json.loads(r.content)
+    return device_info['authentication']['symmetricKey']['primaryKey']
 
 
-class AzureClient(MQTTClient):
+class AzureClient:
+    API_VERSION = '2016-02-03'
 
     def __init__(self):
         # load azure configuration
         with open("azure.json") as a:
             azure = json.load(a)
         self.device_id = azure['name']
-        endpoint = azure['endpoint']
-        key = azure['key']
-        policy = azure['policy']
+        self.endpoint = azure['endpoint']
+        self.key = azure['key']
+        self.policy = azure['policy']
 
-        self.topic = "devices/{device_id}/messages/events/".format(device_id=self.device_id)
-
-        # configure the URI for authentication (same as HTTP)
-        uri = "{hostname}/devices/{device_id}".format(
-            hostname=endpoint,
+        # configure the URI for authentication
+        self.uri = "{hostname}/devices/{device_id}".format(
+            hostname=self.endpoint,
             device_id=self.device_id
         )
-        # configure username and password from config
-        username = "{hostname}/{device_id}/api-version=2018-06-30".format(
-            hostname=endpoint,
-            device_id=self.device_id
-        )
-        sas_token = self._generate_sas_token(uri, key, policy)
 
-        # check if device already exists in registry
-        url = 'https://{}?api-version=2018-06-30'.format(uri)
-        r = requests.get(url, headers={'Content-Type': 'application/json', 'Authorization': sas_token})
+        # generate a SAS token from URI, shared access key and policy name
+        sas_token = self._generate_sas_token(self.uri, self.key, self.policy)
+
+        # check if device already exists in registry and register if not
+        register_url = "https://{uri}?api-version={version}".format(
+            uri=self.uri,
+            version=self.API_VERSION
+        )
+        r = requests.get(register_url, headers={'Content-Type': 'application/json', 'Authorization': sas_token})
         if r.status_code == 404:  # device is not registered yet
             r.close()
-            self.device_key = self._register_device(url, sas_token)
+            self.device_key = self._register_device(register_url, sas_token)
         elif r.status_code == 200:
             print("Device already registered: {}".format(r.text))
-            self.device_key = self._get_device_key(r)
+            self.device_key = _get_device_key(r)
         else:
             raise Exception(
                 "!! GET request failed with status code {}: {}".format(r.status_code, r.text))
 
-        # initialize underlying  MQTT client
-        super().__init__(self.device_id, endpoint, user=username, password=sas_token, ssl=True, port=8883)
+        # generate URL for device to cloud messaging
+        self.message_url = "https://{uri}/messages/events?api-version={version}".format(
+            uri=self.uri,
+            version=self.API_VERSION
+        )
 
     def _register_device(self, url, sas_token):
         """
@@ -59,12 +69,12 @@ class AzureClient(MQTTClient):
         r = requests.put(url, headers={'Content-Type': 'application/json', 'Authorization': sas_token}, data=body)
         if r.status_code == 200:
             print("Registered device at hub: {}".format(r.text))
-            return self._get_device_key(r)
+            return _get_device_key(r)
         else:
             raise Exception(
                 "!! Device not registered. Request failed with status code {}: {}".format(r.status_code, r.text))
 
-    def _generate_sas_token(self, uri, key, policy_name, valid_secs=3600):
+    def _generate_sas_token(self, uri, key, policy_name, valid_secs=10):
         # uri = quote(uri, safe='').lower()
         encoded_uri = quote(uri, safe='')
 
@@ -80,12 +90,16 @@ class AzureClient(MQTTClient):
             'se': str(ttl),
             'skn': policy_name
         })
-
         return token
 
-    def _get_device_key(self, r):
-        device_info = json.loads(r.content)
-        return device_info['authentication']['symmetricKey']['primaryKey']
+    def send(self, msg: str):
+        print("** sending measurements to Azure IoT hub...")
+        # generate a new SAS token for every message to make sure it's still valid
+        sas_token = self._generate_sas_token(self.uri, self.key, self.policy)
 
-    def send(self, msg):
-        super().publish(self.topic, msg, qos=1)
+        r = requests.post(self.message_url, headers={'Authorization': sas_token}, data=msg)
+        if r.status_code == 204:
+            r.close()
+        else:
+            raise Exception(
+                "!! request to {} failed with status code {}: {}".format(self.message_url, r.status_code, r.text))

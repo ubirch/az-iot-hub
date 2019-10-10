@@ -41,9 +41,8 @@ while not rtc.synced():
     machine.idle()
 print("Time set to: {}".format(rtc.now())+"\n")
 
-# create Azure client (MQTT) and connect
+# create Azure client
 azure = AzureClient()
-azure.connect()
 
 # # create IBM Cloud client (MQTT) and connect
 # ibm = IBMClient()
@@ -83,7 +82,6 @@ while True:
         message = fmt.format(azure.device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
         # send data to IoT hub
-        print("** sending measurements to azure IoT hub...")
         azure.send(message)
 
         # # send data to IBM cloud
