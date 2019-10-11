@@ -82,10 +82,11 @@ while True:
         message = fmt.format(azure.device_id, humidity, light[0], light[1], temperature, int(time.time()), voltage)
 
         # send data to IoT hub
+        print("** sending measurements to Azure IoT hub ...")
         azure.send(message)
 
         # # send data to IBM cloud
-        # print("** sending measurements IBM cloud...")
+        # print("** sending measurements to IBM cloud ...")
         # ibm.send(message)
 
         # # send data certificate (UPP) to UBIRCH

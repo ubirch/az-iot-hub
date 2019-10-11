@@ -93,7 +93,6 @@ class AzureClient:
         return token
 
     def send(self, msg: str):
-        print("** sending measurements to Azure IoT hub...")
         # generate a new SAS token for every message to make sure it's still valid
         sas_token = self._generate_sas_token(self.uri, self.key, self.policy)
 
